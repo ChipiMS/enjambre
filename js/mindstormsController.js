@@ -12,7 +12,10 @@ var columns;
 var height;
 var horizontalWalls;
 var loadedImages = 0;
+var menuX, menuY;
 var movements = 0;
+var msInfo = [];
+var msInMap;
 var msLength = 35;
 var rows;
 var verticalWalls;
@@ -45,34 +48,32 @@ function draw(){
 	canvasContext.clearRect(0, 0, width, height);
 
 	drawMap();
+	drawMindstorms();
+
 	document.getElementById("movements").innerHTML = movements;
 }
 
-function drawMindstorm(){
-	if(orientation === 0){
-		canvasContext.drawImage(kWest, positionX, positionY);
-	}
-	if(orientation === 1){
-		canvasContext.drawImage(kNorth, positionX, positionY);
-	}
-	if(orientation === 2){
-		canvasContext.drawImage(kEast, positionX, positionY);
-	}
-	if(orientation === 3){
-		canvasContext.drawImage(kSouth, positionX, positionY);
+function drawMindstorms(){
+	let i, ms;
+	for(i = 0; i < msInfo.length; i++){
+		ms = msInfo[i];
+		if(ms.direction === 0){
+			canvasContext.drawImage(msNorth, ms.x*msLength, ms.y*msLength);
+		}
+		if(ms.direction === 1){
+			canvasContext.drawImage(msEast, ms.x*msLength, ms.y*msLength);
+		}
+		if(ms.direction === 2){
+			canvasContext.drawImage(msSouth, ms.x*msLength, ms.y*msLength);
+		}
+		if(ms.direction === 3){
+			canvasContext.drawImage(msWest, ms.x*msLength, ms.y*msLength);
+		}
 	}
 }
 
 function drawMap(){
 	let i, j;
-	//Border
-	// canvasContext.beginPath();
-	// canvasContext.moveTo(0, 0);
-	// canvasContext.lineTo(0, height);
-	// canvasContext.lineTo(width, height);
-	// canvasContext.lineTo(width, 0);
-	// canvasContext.lineTo(0, 0);
-	// canvasContext.stroke();
 	//Squares
 	for(i = 0; i < rows; i++){
 		for(j = 0; j < columns; j++){
@@ -119,8 +120,21 @@ function initMap(){
 	building = true;
 
 	initWalls();
+	initMS();
 	
 	draw();
+}
+
+function initMS(){
+	let i, j, row;
+	msInMap = [];
+	for(i = 0; i < rows; i++){
+		row = [];
+		for(j = 0; j < columns; j++){
+			row.push(false);
+		}
+		msInMap.push(row);
+	}
 }
 
 function initWalls(){
@@ -155,6 +169,7 @@ function isVerticalBorder(x){
 function modifyMap(event){
 	var firstLimit = 5, lastLimit = 29;
 	let x = event.clientX-1, y = event.clientY-1, positionX = Math.floor(x/msLength), positionY = Math.floor(y/msLength), absoluteX = x%msLength, absoluteY = y%msLength;
+	//Walls
 	if(absoluteX <= firstLimit && firstLimit < absoluteY && absoluteY < lastLimit){
 		if(!isVerticalBorder(positionX)){
 			verticalWalls[positionY][positionX] = !verticalWalls[positionY][positionX];
@@ -175,6 +190,61 @@ function modifyMap(event){
 			horizontalWalls[positionY+1][positionX] = !horizontalWalls[positionY+1][positionX];
 		}
 	}
+	//Menu
+	if(firstLimit < absoluteX && absoluteX < lastLimit && firstLimit < absoluteY && absoluteY < lastLimit){
+		showMenu(x, y, positionX, positionY);
+	}
 
 	draw();
+}
+
+function positionMS(direction){
+	let i;
+	if(!msInMap[menuY][menuX]){
+		msInMap[menuY][menuX] = true;
+		msInfo.push({
+			x: menuX,
+			y: menuY,
+			direction: direction
+		})
+	}
+	else{
+		for(i = 0; i < msInfo.length-1; i++){
+			if(msInfo[i].x === menuX && msInfo[i].y === menuY){
+				msInfo[i].direction = direction;
+			}
+		}
+	}
+
+	$("#menu").css("display", "none");
+
+	draw();
+}
+
+function removeMS(){
+	let i, aux;
+	if(msInMap[menuY][menuX]){
+		msInMap[menuY][menuX] = false;
+		for(i = 0; i < msInfo.length-1; i++){
+			if(msInfo[i].x === menuX && msInfo[i].y === menuY){
+				aux = msInfo[i];
+				msInfo[i] = msInfo[i+1];
+				msInfo[i+1] = aux;
+			}
+		}
+		msInfo.pop();
+	}
+
+	$("#menu").css("display", "none");
+
+	draw();
+}
+
+function showMenu(x, y, positionX, positionY){
+	menuX = positionX;
+	menuY = positionY;
+
+	$("#menu").css("display", "block");
+	$("#menu").css("top", positionY*msLength);
+	$("#menu").css("left", positionX*msLength);
 }

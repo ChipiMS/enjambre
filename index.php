@@ -16,6 +16,14 @@
 		<div id="movements">0</div>
 	</div>
 
+	<ul id="menu">
+		<li onclick="positionMS(0)">Poner mindstorm mirando al norte</li>
+		<li onclick="positionMS(2)">Poner mindstorm mirando al sur</li>
+		<li onclick="positionMS(1)">Poner mindstorm mirando al este</li>
+		<li onclick="positionMS(3)">Poner mindstorm mirando al oeste</li>
+		<li onclick="removeMS()">Quitar mindstorm</li>
+	</ul>
+
 	<!-- <script>
 		var settings = <?=$settings ?>;
 		var mines = <?=$mines ?>;
