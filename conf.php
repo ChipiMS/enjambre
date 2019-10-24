@@ -1,0 +1,10 @@
+<?
+uBD#userTEST
+pBD#123
+nBD#ImprovedMinesweaper
+servidor#localhost
+icon_user#user.ico
+icon_delete#trash.ico
+icon_edit#pencil.ico
+icon_new#add.ico
+?>
