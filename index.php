@@ -22,6 +22,7 @@
 		<li onclick="positionMS(1)">Poner mindstorm mirando al este</li>
 		<li onclick="positionMS(3)">Poner mindstorm mirando al oeste</li>
 		<li onclick="removeMS()">Quitar mindstorm</li>
+		<li onclick="positionObjetive()">Agregar objetivo</li>
 	</ul>
 
 	<!-- <script>

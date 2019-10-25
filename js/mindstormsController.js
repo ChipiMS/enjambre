@@ -17,6 +17,7 @@ var movements = 0;
 var msInfo = [];
 var msInMap;
 var msLength = 35;
+var objetiveX, objetiveY;
 var rows;
 var verticalWalls;
 var width;
@@ -49,6 +50,7 @@ function draw(){
 
 	drawMap();
 	drawMindstorms();
+	drawObjetive();
 
 	document.getElementById("movements").innerHTML = movements;
 }
@@ -86,6 +88,16 @@ function drawMap(){
 	drawWalls();
 }
 
+function drawObjetive(){
+	if(objetiveX !== undefined){
+		canvasContext.strokeStyle = "red";
+		canvasContext.beginPath();
+		canvasContext.rect(objetiveX*msLength+8, objetiveY*msLength+8, 21, 21);
+		canvasContext.stroke();
+		canvasContext.strokeStyle = "black";
+	}
+}
+
 function drawWalls(){
 	let i, j;
 	for(i = 0; i < rows+1; i++){
@@ -118,6 +130,7 @@ function initMap(){
 	height = canvas.height = rows*msLength+2;
 	$("#mapOptions").hide();
 	building = true;
+	canvasContext.strokeStyle = "black";
 
 	initWalls();
 	initMS();
@@ -209,12 +222,21 @@ function positionMS(direction){
 		})
 	}
 	else{
-		for(i = 0; i < msInfo.length-1; i++){
+		for(i = 0; i < msInfo.length; i++){
 			if(msInfo[i].x === menuX && msInfo[i].y === menuY){
 				msInfo[i].direction = direction;
 			}
 		}
 	}
+
+	$("#menu").css("display", "none");
+
+	draw();
+}
+
+function positionObjetive(){
+	objetiveX = menuX;
+	objetiveY = menuY;
 
 	$("#menu").css("display", "none");
 
