@@ -60,16 +60,16 @@ function drawMindstorms(){
 	for(i = 0; i < msInfo.length; i++){
 		ms = msInfo[i];
 		if(ms.direction === 0){
-			canvasContext.drawImage(msNorth, ms.x*msLength, ms.y*msLength);
+			canvasContext.drawImage(msNorth, ms.map.x*msLength, ms.map.y*msLength);
 		}
 		if(ms.direction === 1){
-			canvasContext.drawImage(msEast, ms.x*msLength, ms.y*msLength);
+			canvasContext.drawImage(msEast, ms.map.x*msLength, ms.map.y*msLength);
 		}
 		if(ms.direction === 2){
-			canvasContext.drawImage(msSouth, ms.x*msLength, ms.y*msLength);
+			canvasContext.drawImage(msSouth, ms.map.x*msLength, ms.map.y*msLength);
 		}
 		if(ms.direction === 3){
-			canvasContext.drawImage(msWest, ms.x*msLength, ms.y*msLength);
+			canvasContext.drawImage(msWest, ms.map.x*msLength, ms.map.y*msLength);
 		}
 	}
 }
@@ -212,19 +212,30 @@ function modifyMap(event){
 }
 
 function positionMS(direction){
-	let i;
+	let i, ms;
 	if(!msInMap[menuY][menuX]){
 		msInMap[menuY][menuX] = true;
-		msInfo.push({
-			x: menuX,
-			y: menuY,
-			direction: direction
-		})
+
+		ms = {
+			map: {
+				direction: direction,
+				x: menuX,
+				y: menuY
+			},
+			robotMemory: {
+				actualNode: {
+					neighbors: [null, null, null, null]
+				},
+				direction: 0
+			}
+		};
+
+		msInfo.push(ms);
 	}
 	else{
 		for(i = 0; i < msInfo.length; i++){
-			if(msInfo[i].x === menuX && msInfo[i].y === menuY){
-				msInfo[i].direction = direction;
+			if(msInfo[i].map.x === menuX && msInfo[i].map.y === menuY){
+				msInfo[i].map.direction = direction;
 			}
 		}
 	}
@@ -248,7 +259,7 @@ function removeMS(){
 	if(msInMap[menuY][menuX]){
 		msInMap[menuY][menuX] = false;
 		for(i = 0; i < msInfo.length-1; i++){
-			if(msInfo[i].x === menuX && msInfo[i].y === menuY){
+			if(msInfo[i].map.x === menuX && msInfo[i].map.y === menuY){
 				aux = msInfo[i];
 				msInfo[i] = msInfo[i+1];
 				msInfo[i+1] = aux;
