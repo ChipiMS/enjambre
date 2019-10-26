@@ -4,7 +4,6 @@
 // ╚██╗ ██╔╝██╔══██║██╔══██╗██║██╔══██║██╔══██╗██║     ██╔══╝  ╚════██║
 //  ╚████╔╝ ██║  ██║██║  ██║██║██║  ██║██████╔╝███████╗███████╗███████║
 //   ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝╚══════╝
-var animationIntervalHandle;
 var building = false;
 var canvas = document.getElementById("myCanvas");
 var canvasContext = canvas.getContext("2d");
@@ -19,6 +18,9 @@ var msInMap;
 var msLength = 35;
 var objetiveX, objetiveY;
 var rows;
+var running = false;
+var simulationIntervalHandle;
+var speed;
 var verticalWalls;
 var width;
 // ██╗███╗   ███╗ █████╗  ██████╗ ███████╗███████╗
@@ -45,6 +47,14 @@ msWest.src = "images/msWest.png";
 // ██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
 // ╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
 
+function closeMenu(){
+	$("#menu").css("display", "none");
+}
+
+function correctDirection(direction, delta){
+	return (direction+delta)%4;
+}
+
 function draw(){
 	canvasContext.clearRect(0, 0, width, height);
 
@@ -59,16 +69,16 @@ function drawMindstorms(){
 	let i, ms;
 	for(i = 0; i < msInfo.length; i++){
 		ms = msInfo[i];
-		if(ms.direction === 0){
+		if(ms.map.direction === 0){
 			canvasContext.drawImage(msNorth, ms.map.x*msLength, ms.map.y*msLength);
 		}
-		if(ms.direction === 1){
+		if(ms.map.direction === 1){
 			canvasContext.drawImage(msEast, ms.map.x*msLength, ms.map.y*msLength);
 		}
-		if(ms.direction === 2){
+		if(ms.map.direction === 2){
 			canvasContext.drawImage(msSouth, ms.map.x*msLength, ms.map.y*msLength);
 		}
-		if(ms.direction === 3){
+		if(ms.map.direction === 3){
 			canvasContext.drawImage(msWest, ms.map.x*msLength, ms.map.y*msLength);
 		}
 	}
@@ -126,9 +136,11 @@ function drawWalls(){
 function initMap(){
 	rows = parseInt($("#rows").val());
 	columns = parseInt($("#columns").val());
+	speed = parseInt($("#speed").val());
 	width = canvas.width = columns*msLength+2;
 	height = canvas.height = rows*msLength+2;
 	$("#mapOptions").hide();
+	$("#start").css('display', 'block');
 	building = true;
 	canvasContext.strokeStyle = "black";
 
@@ -171,6 +183,21 @@ function initWalls(){
 	}
 }
 
+function isExplorable(ms, node){
+	if(node === null){
+		return true;
+	}
+	if(node === false){
+		return false;
+	}
+	for(let i = 0; i < 4; i++){
+		if(!node.neighbors[i]){
+			return true;
+		}
+	}
+	return false;
+}
+
 function isHorizontalBorder(y){
 	return y === 0 || y === rows;
 }
@@ -182,6 +209,9 @@ function isVerticalBorder(x){
 function modifyMap(event){
 	var firstLimit = 5, lastLimit = 29;
 	let x = event.clientX-1, y = event.clientY-1, positionX = Math.floor(x/msLength), positionY = Math.floor(y/msLength), absoluteX = x%msLength, absoluteY = y%msLength;
+	if(running){
+		return;
+	}
 	//Walls
 	if(absoluteX <= firstLimit && firstLimit < absoluteY && absoluteY < lastLimit){
 		if(!isVerticalBorder(positionX)){
@@ -211,6 +241,141 @@ function modifyMap(event){
 	draw();
 }
 
+function move(){
+	let i, ms;
+	for(let i = 0; i < msInfo.length; i++){
+		ms = msInfo[i];
+		if(ms.map.willMove){
+			ms.map.willMove = false;
+			if(ms.map.direction === 0){
+				if(!msInMap[ms.map.y-1][ms.map.x]){
+					ms.map.y--;
+				}
+				else{
+					return true;
+				}
+			}
+			if(ms.map.direction === 1){
+				if(!msInMap[ms.map.y][ms.map.x+1]){
+					ms.map.x++;
+				}
+				else{
+					return true;
+				}
+			}
+			if(ms.map.direction === 2){
+				if(!msInMap[ms.map.y+1][ms.map.x]){
+					ms.map.y++;
+				}
+				else{
+					return true;
+				}
+			}
+			if(ms.map.direction === 3){
+				if(!msInMap[ms.map.y][ms.map.x-1]){
+					ms.map.x--;
+				}
+				else{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+function msActionMove(ms){
+	ms.map.willMove = true;
+	if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction]){
+		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction];
+	}
+	else{
+		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction] = newNode();
+		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbors[(ms.robotMemory.direction+2)%4] = ms.robotMemory.actualNode;
+		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction];
+	}
+}
+
+function msActionTurnLeft(ms){
+	ms.map.direction = (ms.map.direction+3)%4;
+	ms.robotMemory.direction = (ms.robotMemory.direction+3)%4;
+}
+
+function msActionTurnRight(ms){
+	ms.map.direction = (ms.map.direction+1)%4;
+	ms.robotMemory.direction = (ms.robotMemory.direction+1)%4;
+}
+
+function msSensorFrontIsClear(ms){
+	if(ms.map.direction === 0){
+		if(horizontalWalls[ms.map.y][ms.map.x]){
+			return false;
+		}
+		if(ms.map.y > 0 && msInMap[ms.map.y-1][ms.map.x]){
+			return false;
+		}
+	}
+	if(ms.map.direction === 1){
+		if(verticalWalls[ms.map.y][ms.map.x+1]){
+			return false;
+		}
+		if(ms.map.x < columns-1 && msInMap[ms.map.y][ms.map.x+1]){
+			return false;
+		}
+	}
+	if(ms.map.direction === 2){
+		if(horizontalWalls[ms.map.y+1][ms.map.x]){
+			return false;
+		}
+		if(ms.map.y < rows-1 && msInMap[ms.map.y+1][ms.map.x]){
+			return false;
+		}
+	}
+	if(ms.map.direction === 3){
+		if(verticalWalls[ms.map.y][ms.map.x]){
+			return false;
+		}
+		if(ms.map.x > 0 && msInMap[ms.map.y][ms.map.x-1]){
+			return false;
+		}
+	}
+	return true;
+}
+
+function msStep(ms){
+	let exploredSomething = false, i;
+	for(i = 0; i < 4 && !exploredSomething; i++){
+		if(isExplorable(ms, ms.robotMemory.actualNode.neighbors[correctDirection(i, ms.robotMemory.direction)])){
+			exploredSomething = true;
+			if(i === 0){
+				if(msSensorFrontIsClear(ms)){
+					msActionMove(ms);
+				}
+				else{
+					ms.robotMemory.actualNode.neighbors[correctDirection(i, ms.robotMemory.direction)] = false;
+					exploredSomething = false;
+				}
+			}
+			else if(i === 1 || i === 2){
+				msActionTurnRight(ms);
+			}
+			else{
+				msActionTurnLeft(ms);
+			}
+		}
+	}
+
+	if(!exploredSomething){
+		ms.robotMemory.finished = true;
+	}
+}
+
+function newNode(){
+	return {
+		neighbors: [null, null, null, null]
+	};
+}
+
 function positionMS(direction){
 	let i, ms;
 	if(!msInMap[menuY][menuX]){
@@ -219,14 +384,14 @@ function positionMS(direction){
 		ms = {
 			map: {
 				direction: direction,
+				willMove: false,
 				x: menuX,
 				y: menuY
 			},
 			robotMemory: {
-				actualNode: {
-					neighbors: [null, null, null, null]
-				},
-				direction: 0
+				actualNode: newNode(),
+				direction: 0,
+				finished: false
 			}
 		};
 
@@ -280,4 +445,31 @@ function showMenu(x, y, positionX, positionY){
 	$("#menu").css("display", "block");
 	$("#menu").css("top", positionY*msLength);
 	$("#menu").css("left", positionX*msLength);
+}
+
+function start(){
+	if(msInfo.length > 0 && objetiveX !== undefined){
+		running = true;
+		$("#start").hide();
+		simulationIntervalHandle = setInterval(step, speed);
+	}
+}
+
+function step(){
+	let allFinished = true, crashed;
+	movements++;
+	for(let i = 0; i < msInfo.length; i++){
+		if(!msInfo[i].robotMemory.finished){
+			msStep(msInfo[i]);
+			allFinished = false;
+		}
+	}
+
+	crashed = move();
+
+	if(allFinished || crashed){
+		window.clearInterval(simulationIntervalHandle);
+	}
+
+	draw();
 }
