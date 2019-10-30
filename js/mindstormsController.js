@@ -133,6 +133,42 @@ function drawWalls(){
 	}
 }
 
+function frontIsClear(ms){
+	if(ms.map.direction === 0){
+		if(horizontalWalls[ms.map.y][ms.map.x]){
+			return false;
+		}
+		if(ms.map.y > 0 && msInMap[ms.map.y-1][ms.map.x]){
+			return false;
+		}
+	}
+	if(ms.map.direction === 1){
+		if(verticalWalls[ms.map.y][ms.map.x+1]){
+			return false;
+		}
+		if(ms.map.x < columns-1 && msInMap[ms.map.y][ms.map.x+1]){
+			return false;
+		}
+	}
+	if(ms.map.direction === 2){
+		if(horizontalWalls[ms.map.y+1][ms.map.x]){
+			return false;
+		}
+		if(ms.map.y < rows-1 && msInMap[ms.map.y+1][ms.map.x]){
+			return false;
+		}
+	}
+	if(ms.map.direction === 3){
+		if(verticalWalls[ms.map.y][ms.map.x]){
+			return false;
+		}
+		if(ms.map.x > 0 && msInMap[ms.map.y][ms.map.x-1]){
+			return false;
+		}
+	}
+	return true;
+}
+
 function getMsStackTop(ms){
 	return ms.robotMemory.stack[ms.robotMemory.stack.length-1];
 }
@@ -204,7 +240,6 @@ function isVerticalBorder(x){
 
 function isMsCorrectlyOriented(ms, direction, directionToExplore, initialDirection){
 	let newDirection = (initialDirection+directionToExplore)%4;
-	console.log(direction, directionToExplore, initialDirection, newDirection, direction === newDirection);
 	if(direction === newDirection){
 		return true;
 	}
@@ -263,14 +298,22 @@ function modifyMap(event){
 }
 
 function move(){
-	let i, ms;
-	for(let i = 0; i < msInfo.length; i++){
+	let i, j, ms, newMap = [], newRow;
+	for(i = 0; i < msInMap.length; i++){
+		newRow = [];
+		for(j = 0; j < msInMap[i].length; j++){
+			newRow.push(false);
+		}
+		newMap.push(newRow);
+	}
+	for(i = 0; i < msInfo.length; i++){
 		ms = msInfo[i];
 		if(ms.map.willMove){
 			ms.map.willMove = false;
 			if(ms.map.direction === 0){
 				if(!msInMap[ms.map.y-1][ms.map.x]){
 					ms.map.y--;
+					newMap[ms.map.y][ms.map.x] = true;
 				}
 				else{
 					return true;
@@ -279,6 +322,7 @@ function move(){
 			if(ms.map.direction === 1){
 				if(!msInMap[ms.map.y][ms.map.x+1]){
 					ms.map.x++;
+					newMap[ms.map.y][ms.map.x] = true
 				}
 				else{
 					return true;
@@ -287,6 +331,7 @@ function move(){
 			if(ms.map.direction === 2){
 				if(!msInMap[ms.map.y+1][ms.map.x]){
 					ms.map.y++;
+					newMap[ms.map.y][ms.map.x] = true;
 				}
 				else{
 					return true;
@@ -295,6 +340,7 @@ function move(){
 			if(ms.map.direction === 3){
 				if(!msInMap[ms.map.y][ms.map.x-1]){
 					ms.map.x--;
+					newMap[ms.map.y][ms.map.x] = true;
 				}
 				else{
 					return true;
@@ -302,6 +348,7 @@ function move(){
 			}
 		}
 	}
+	msInMap = newMap;
 	return false;
 }
 
@@ -333,56 +380,31 @@ function msActionTurnRight(ms){
 }
 
 function msSensorFrontIsClear(ms){
-	if(ms.map.direction === 0){
-		if(horizontalWalls[ms.map.y][ms.map.x]){
-			return false;
-		}
-		if(ms.map.y > 0 && msInMap[ms.map.y-1][ms.map.x]){
+	if(frontIsClear(ms)){
+		if(msSensorObjetiveIsInFront(ms)){
 			return false;
 		}
 	}
-	if(ms.map.direction === 1){
-		if(verticalWalls[ms.map.y][ms.map.x+1]){
-			return false;
-		}
-		if(ms.map.x < columns-1 && msInMap[ms.map.y][ms.map.x+1]){
-			return false;
-		}
-	}
-	if(ms.map.direction === 2){
-		if(horizontalWalls[ms.map.y+1][ms.map.x]){
-			return false;
-		}
-		if(ms.map.y < rows-1 && msInMap[ms.map.y+1][ms.map.x]){
-			return false;
-		}
-	}
-	if(ms.map.direction === 3){
-		if(verticalWalls[ms.map.y][ms.map.x]){
-			return false;
-		}
-		if(ms.map.x > 0 && msInMap[ms.map.y][ms.map.x-1]){
-			return false;
-		}
-	}
-	if(msSensorObjetiveIsInFront(ms)){
+	else{
 		return false;
 	}
 	return true;
 }
 
 function msSensorObjetiveIsInFront(ms){
-	if(ms.map.direction === 0 && ms.map.y > 0 && objetiveY === ms.map.y-1 && objetiveX === ms.map.x){
-		return true;
-	}
-	if(ms.map.direction === 1 && ms.map.x < columns-1 && objetiveY === ms.map.y && objetiveX === ms.map.x+1){
-		return true;
-	}
-	if(ms.map.direction === 2 && ms.map.y < rows-1 && objetiveY === ms.map.y+1 && objetiveX === ms.map.x){
-		return true;
-	}
-	if(ms.map.direction === 3 && ms.map.x > 0 && objetiveY === ms.map.y && objetiveX === ms.map.x-1){
-		return true;
+	if(frontIsClear(ms)){
+		if(ms.map.direction === 0 && ms.map.y > 0 && objetiveY === ms.map.y-1 && objetiveX === ms.map.x){
+			return true;
+		}
+		if(ms.map.direction === 1 && ms.map.x < columns-1 && objetiveY === ms.map.y && objetiveX === ms.map.x+1){
+			return true;
+		}
+		if(ms.map.direction === 2 && ms.map.y < rows-1 && objetiveY === ms.map.y+1 && objetiveX === ms.map.x){
+			return true;
+		}
+		if(ms.map.direction === 3 && ms.map.x > 0 && objetiveY === ms.map.y && objetiveX === ms.map.x-1){
+			return true;
+		}
 	}
 	return false;
 }
@@ -413,10 +435,11 @@ function msStep(ms){
 		state.neighborsExplored = i;
 	}
 	else{
-		if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, 0, state.initialDirection)){
+		if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, 2, state.initialDirection)){
 			ms.robotMemory.stack.pop();
 			if(ms.robotMemory.stack.length > 0){
 				msActionMove(ms);
+				ms.robotMemory.stack.pop();
 			}
 			else{
 				ms.robotMemory.finished = true;
