@@ -311,7 +311,7 @@ function move(){
 		if(ms.map.willMove){
 			ms.map.willMove = false;
 			if(ms.map.direction === 0){
-				if(!msInMap[ms.map.y-1][ms.map.x]){
+				if(!msInMap[ms.map.y-1][ms.map.x] && !newMap[ms.map.y-1][ms.map.x]){
 					ms.map.y--;
 					newMap[ms.map.y][ms.map.x] = true;
 				}
@@ -320,7 +320,7 @@ function move(){
 				}
 			}
 			if(ms.map.direction === 1){
-				if(!msInMap[ms.map.y][ms.map.x+1]){
+				if(!msInMap[ms.map.y][ms.map.x+1] && !newMap[ms.map.y][ms.map.x+1]){
 					ms.map.x++;
 					newMap[ms.map.y][ms.map.x] = true
 				}
@@ -329,7 +329,7 @@ function move(){
 				}
 			}
 			if(ms.map.direction === 2){
-				if(!msInMap[ms.map.y+1][ms.map.x]){
+				if(!msInMap[ms.map.y+1][ms.map.x] && !newMap[ms.map.y+1][ms.map.x]){
 					ms.map.y++;
 					newMap[ms.map.y][ms.map.x] = true;
 				}
@@ -338,7 +338,7 @@ function move(){
 				}
 			}
 			if(ms.map.direction === 3){
-				if(!msInMap[ms.map.y][ms.map.x-1]){
+				if(!msInMap[ms.map.y][ms.map.x-1] && !newMap[ms.map.y][ms.map.x-1]){
 					ms.map.x--;
 					newMap[ms.map.y][ms.map.x] = true;
 				}
