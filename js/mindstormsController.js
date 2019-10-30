@@ -133,6 +133,10 @@ function drawWalls(){
 	}
 }
 
+function getMsStackTop(ms){
+	return ms.robotMemory.stack[ms.robotMemory.stack.length-1];
+}
+
 function initMap(){
 	rows = parseInt($("#rows").val());
 	columns = parseInt($("#columns").val());
@@ -187,14 +191,6 @@ function isExplorable(ms, node){
 	if(node === null){
 		return true;
 	}
-	if(node === false){
-		return false;
-	}
-	for(let i = 0; i < 4; i++){
-		if(!node.neighbors[i]){
-			return true;
-		}
-	}
 	return false;
 }
 
@@ -204,6 +200,31 @@ function isHorizontalBorder(y){
 
 function isVerticalBorder(x){
 	return x === 0 || x === columns;
+}
+
+function isMsCorrectlyOriented(ms, direction, directionToExplore, initialDirection){
+	let newDirection = (initialDirection+directionToExplore)%4;
+	console.log(direction, directionToExplore, initialDirection, newDirection, direction === newDirection);
+	if(direction === newDirection){
+		return true;
+	}
+	if(newDirection < direction){
+		if(newDirection+4-direction < direction-newDirection){
+			msActionTurnRight(ms);
+		}
+		else{
+			msActionTurnLeft(ms);
+		}
+	}
+	else{
+		if(newDirection-direction < direction+4-newDirection){
+			msActionTurnRight(ms);
+		}
+		else{
+			msActionTurnLeft(ms);
+		}
+	}
+	return false;
 }
 
 function modifyMap(event){
@@ -294,6 +315,11 @@ function msActionMove(ms){
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbors[(ms.robotMemory.direction+2)%4] = ms.robotMemory.actualNode;
 		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction];
 	}
+	ms.robotMemory.stack.push({
+		initialDirection: ms.robotMemory.direction,
+		neighborsExplored: 0,
+		node: ms.robotMemory.actualNode
+	});
 }
 
 function msActionTurnLeft(ms){
@@ -339,34 +365,63 @@ function msSensorFrontIsClear(ms){
 			return false;
 		}
 	}
+	if(msSensorObjetiveIsInFront(ms)){
+		return false;
+	}
 	return true;
 }
 
+function msSensorObjetiveIsInFront(ms){
+	if(ms.map.direction === 0 && ms.map.y > 0 && objetiveY === ms.map.y-1 && objetiveX === ms.map.x){
+		return true;
+	}
+	if(ms.map.direction === 1 && ms.map.x < columns-1 && objetiveY === ms.map.y && objetiveX === ms.map.x+1){
+		return true;
+	}
+	if(ms.map.direction === 2 && ms.map.y < rows-1 && objetiveY === ms.map.y+1 && objetiveX === ms.map.x){
+		return true;
+	}
+	if(ms.map.direction === 3 && ms.map.x > 0 && objetiveY === ms.map.y && objetiveX === ms.map.x-1){
+		return true;
+	}
+	return false;
+}
+
 function msStep(ms){
-	let exploredSomething = false, i;
-	for(i = 0; i < 4 && !exploredSomething; i++){
-		if(isExplorable(ms, ms.robotMemory.actualNode.neighbors[correctDirection(i, ms.robotMemory.direction)])){
+	let exploredSomething = false, state = getMsStackTop(ms), i = state.neighborsExplored;
+	while(i < 4 && !exploredSomething){
+		if(isExplorable(ms, ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)])){
 			exploredSomething = true;
-			if(i === 0){
-				if(msSensorFrontIsClear(ms)){
-					msActionMove(ms);
-				}
-				else{
-					ms.robotMemory.actualNode.neighbors[correctDirection(i, ms.robotMemory.direction)] = false;
-					exploredSomething = false;
-				}
-			}
-			else if(i === 1 || i === 2){
-				msActionTurnRight(ms);
-			}
-			else{
-				msActionTurnLeft(ms);
-			}
+		}
+		else{
+			i++;
 		}
 	}
 
-	if(!exploredSomething){
-		ms.robotMemory.finished = true;
+	if(i < 4){
+		if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, i, state.initialDirection)){
+			if(msSensorFrontIsClear(ms)){
+				msActionMove(ms);
+			}
+			else{
+				if(msSensorObjetiveIsInFront(ms)){
+					ms.robotMemory.finished = true;
+				}
+				ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)] = false;
+			}
+		}
+		state.neighborsExplored = i;
+	}
+	else{
+		if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, 0, state.initialDirection)){
+			ms.robotMemory.stack.pop();
+			if(ms.robotMemory.stack.length > 0){
+				msActionMove(ms);
+			}
+			else{
+				ms.robotMemory.finished = true;
+			}
+		}
 	}
 }
 
@@ -391,9 +446,15 @@ function positionMS(direction){
 			robotMemory: {
 				actualNode: newNode(),
 				direction: 0,
-				finished: false
+				finished: false,
+				stack: []
 			}
 		};
+		ms.robotMemory.stack.push({
+			initialDirection: 0,
+			neighborsExplored: 0,
+			node: ms.robotMemory.actualNode
+		});
 
 		msInfo.push(ms);
 	}
