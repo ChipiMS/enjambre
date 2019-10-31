@@ -224,7 +224,7 @@ function initWalls(){
 }
 
 function isExplorable(ms, node){
-	if(node === null){
+	if(node.neighbor === null && node.wall !== true){
 		return true;
 	}
 	return false;
@@ -354,13 +354,15 @@ function move(){
 
 function msActionMove(ms){
 	ms.map.willMove = true;
-	if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction]){
-		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction];
+	if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
+		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
 	}
 	else{
-		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction] = newNode();
-		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbors[(ms.robotMemory.direction+2)%4] = ms.robotMemory.actualNode;
-		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction];
+		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
+		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
+		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
+		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
+		// verifyUnions(ms);
 	}
 	ms.robotMemory.stack.push({
 		initialDirection: ms.robotMemory.direction,
@@ -429,7 +431,10 @@ function msStep(ms){
 				if(msSensorObjetiveIsInFront(ms)){
 					ms.robotMemory.finished = true;
 				}
-				ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)] = false;
+				ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)].wall = true;
+				if(ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)].neighbor){
+					ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)].neighbor.neighbors[correctDirection(2, correctDirection(i, state.initialDirection))].wall = true;
+				}
 			}
 		}
 		state.neighborsExplored = i;
@@ -448,9 +453,17 @@ function msStep(ms){
 	}
 }
 
-function newNode(){
+function newNeighbor(){
 	return {
-		neighbors: [null, null, null, null]
+		neighbor: null,
+		wall: null
+	}
+}
+
+function newNode(id){
+	return {
+		id: id,
+		neighbors: [newNeighbor(), newNeighbor(), newNeighbor(), newNeighbor()]
 	};
 }
 
@@ -467,9 +480,10 @@ function positionMS(direction){
 				y: menuY
 			},
 			robotMemory: {
-				actualNode: newNode(),
+				actualNode: newNode(0),
 				direction: 0,
 				finished: false,
+				nodesCount: 1,
 				stack: []
 			}
 		};
@@ -556,4 +570,50 @@ function step(){
 	}
 
 	draw();
+}
+
+function verifyUnions(ms){
+	let i, j, visited = [], queue = [], actualNode = ms.robotMemory.actualNode, nodeToProcess;
+	for(i = 0; i < ms.robotMemory.nodesCount; i++){
+		visited.push(false);
+	}
+
+	queue.push({
+		node: ms.robotMemory.actualNode,
+		x: 0,
+		y: 0
+	});
+	visited[ms.robotMemory.nodesCount-1] = true;
+
+	while(queue.length > 0){
+		nodeToProcess = queue.unshift();
+
+		if(nodeToProcess.x === 0){
+			if(nodeToProcess.y === 1 && actualNode.neighbors[2].neighbor === null){
+
+			}
+			if(nodeToProcess.y === -1){
+				
+			}
+		}
+		if(nodeToProcess.y === 0){
+			if(nodeToProcess.x === 1){
+
+			}
+			if(nodeToProcess.x === -1){
+				
+			}
+		}
+
+		for(i = 0; i < 4; i++){
+			if(nodeToProcess.node.neighbors[i].neighbor && !visited[nodeToProcess.node.neighbors[i].neighbor.id]){
+				queue.push({
+					node: nodeToProcess.node.neighbors[i].neighbor,
+					x: 0+(i % 2 === 1 ? (i === 1 ? 1: -1) : 0),
+					y: 0+(i % 2 === 0 ? (i === 0 ? -1: 1) : 0)
+				});
+				visited[nodeToProcess.node.neighbors[i].neighbor.id] = true;
+			}
+		}
+	}
 }
