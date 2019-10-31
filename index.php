@@ -20,6 +20,8 @@
 		<div id="movements">0</div>
 	</div>
 
+	<!-- <div onclick="step()">Paso</div> -->
+
 	<ul id="menu">
 		<li onclick="positionMS(0)">Poner mindstorm mirando al norte</li>
 		<li onclick="positionMS(2)">Poner mindstorm mirando al sur</li>

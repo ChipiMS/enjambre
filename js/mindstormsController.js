@@ -55,6 +55,19 @@ function correctDirection(direction, delta){
 	return (direction+delta)%4;
 }
 
+function createUnion(actualNode, nodeToProcess, anDirection, ntpDirection){
+	if(actualNode.neighbors[anDirection].neighbor === null){
+		actualNode.neighbors[anDirection].neighbor = nodeToProcess;
+		nodeToProcess.neighbors[ntpDirection].neighbor = actualNode;
+		if(actualNode.neighbors[anDirection].wall !== null){
+			nodeToProcess.neighbors[ntpDirection].wall = actualNode.neighbors[anDirection].wall;
+		}
+		else if(nodeToProcess.neighbors[ntpDirection].wall !== null){
+			actualNode.neighbors[anDirection].wall = nodeToProcess.neighbors[ntpDirection].wall;
+		}
+	}
+}
+
 function draw(){
 	canvasContext.clearRect(0, 0, width, height);
 
@@ -362,7 +375,7 @@ function msActionMove(ms){
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
 		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
-		// verifyUnions(ms);
+		verifyUnions(ms);
 	}
 	ms.robotMemory.stack.push({
 		initialDirection: ms.robotMemory.direction,
@@ -586,22 +599,22 @@ function verifyUnions(ms){
 	visited[ms.robotMemory.nodesCount-1] = true;
 
 	while(queue.length > 0){
-		nodeToProcess = queue.unshift();
+		nodeToProcess = queue.shift();
 
 		if(nodeToProcess.x === 0){
-			if(nodeToProcess.y === 1 && actualNode.neighbors[2].neighbor === null){
-
+			if(nodeToProcess.y === 1){
+				createUnion(actualNode, nodeToProcess.node, 2, 0);
 			}
 			if(nodeToProcess.y === -1){
-				
+				createUnion(actualNode, nodeToProcess.node, 0, 2);
 			}
 		}
 		if(nodeToProcess.y === 0){
 			if(nodeToProcess.x === 1){
-
+				createUnion(actualNode, nodeToProcess.node, 1, 3);
 			}
 			if(nodeToProcess.x === -1){
-				
+				createUnion(actualNode, nodeToProcess.node, 3, 1);
 			}
 		}
 
@@ -609,8 +622,8 @@ function verifyUnions(ms){
 			if(nodeToProcess.node.neighbors[i].neighbor && !visited[nodeToProcess.node.neighbors[i].neighbor.id]){
 				queue.push({
 					node: nodeToProcess.node.neighbors[i].neighbor,
-					x: 0+(i % 2 === 1 ? (i === 1 ? 1: -1) : 0),
-					y: 0+(i % 2 === 0 ? (i === 0 ? -1: 1) : 0)
+					x: nodeToProcess.x+(i % 2 === 1 ? (i === 1 ? 1: -1) : 0),
+					y: nodeToProcess.y+(i % 2 === 0 ? (i === 0 ? -1: 1) : 0)
 				});
 				visited[nodeToProcess.node.neighbors[i].neighbor.id] = true;
 			}
