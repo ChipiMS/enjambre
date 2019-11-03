@@ -360,6 +360,9 @@ function move(){
 				}
 			}
 		}
+		else{
+			newMap[ms.map.y][ms.map.x] = true;
+		}
 	}
 	msInMap = newMap;
 	return false;
