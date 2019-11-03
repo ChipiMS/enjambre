@@ -1,6 +1,9 @@
-<?
-	include "tools/header.php";
-?>
+<head>
+	<link rel="stylesheet" type="text/css" href="css/styles.css">
+	<script type="text/javascript" src="js/jquery-3.3.1.min.js"></script>
+	<title>Enjambre</title>
+</head>
+<body>
 	<div id="mapOptions">
 		<label>Filas</label>
 		<input id="rows" type="number" name="rows" value="10">
