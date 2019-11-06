@@ -55,15 +55,56 @@ function correctDirection(direction, delta){
 	return (direction+delta)%4;
 }
 
-function createUnion(actualNode, nodeToProcess, anDirection, ntpDirection){
-	if(actualNode.neighbors[anDirection].neighbor === null){
-		actualNode.neighbors[anDirection].neighbor = nodeToProcess;
-		nodeToProcess.neighbors[ntpDirection].neighbor = actualNode;
-		if(actualNode.neighbors[anDirection].wall !== null){
-			nodeToProcess.neighbors[ntpDirection].wall = actualNode.neighbors[anDirection].wall;
+function correctDirections(superFriend, delta){
+	let i, ms;
+	for(i = 0; i < msInfo.length; i++){
+		ms = msInfo[i];
+		if(getSuperFriend(ms) === superFriend){
+			ms.robotMemory.direction = correctDirection(ms.robotMemory.direction, delta);
 		}
-		else if(nodeToProcess.neighbors[ntpDirection].wall !== null){
-			actualNode.neighbors[anDirection].wall = nodeToProcess.neighbors[ntpDirection].wall;
+	}
+}
+
+function correctFriendsNodesCount(superFriend, newCount){
+	let i, ms;
+	for(i = 0; i < msInfo.length; i++){
+		ms = msInfo[i];
+		if(getSuperFriend(ms) === superFriend){
+			ms.robotMemory.nodesCount = newCount;
+		}
+	}
+}
+
+function correctNodes(node, countStart, lastCount, delta){
+	let i, queue = [], nodeToProcess, newId = countStart;
+
+	queue.push(node);
+	node.id = newId++;
+
+	while(queue.length > 0){
+		nodeToProcess = queue.shift();
+
+		nodeToProcess.directionCorrection = correctDirection(nodeToProcess.directionCorrection, delta);
+
+		for(i = 0; i < 4; i++){
+			if(nodeToProcess.neighbors[i].neighbor && nodeToProcess.neighbors[i].neighbor.id < countStart){
+				queue.push(nodeToProcess.neighbors[i].neighbor);
+				nodeToProcess.neighbors[i].neighbor.id = newId++;
+			}
+		}
+	}
+}
+
+function createUnion(actualNode, nodeToProcess, anDirection, ntpDirection){
+	const correctedAnDirection = correctDirection(anDirection, actualNode.directionCorrection), correctedNtpDirection = correctDirection(ntpDirection, nodeToProcess.directionCorrection);
+	if(actualNode.neighbors[correctedAnDirection].neighbor === null){
+		actualNode.neighbors[correctedAnDirection].neighbor = nodeToProcess;
+		nodeToProcess.neighbors[correctedNtpDirection].neighbor = actualNode;
+		if(actualNode.neighbors[correctedAnDirection].wall !== null){
+			nodeToProcess.neighbors[correctedNtpDirection].wall = actualNode.neighbors[correctedAnDirection].wall;
+		}
+		else if(nodeToProcess.neighbors[correctedNtpDirection].wall !== null){
+			actualNode.neighbors[correctedAnDirection].wall = nodeToProcess.neighbors[correctedNtpDirection].wall;
 		}
 	}
 }
@@ -151,15 +192,9 @@ function frontIsClear(ms){
 		if(horizontalWalls[ms.map.y][ms.map.x]){
 			return false;
 		}
-		if(ms.map.y > 0 && msInMap[ms.map.y-1][ms.map.x]){
-			return false;
-		}
 	}
 	if(ms.map.direction === 1){
 		if(verticalWalls[ms.map.y][ms.map.x+1]){
-			return false;
-		}
-		if(ms.map.x < columns-1 && msInMap[ms.map.y][ms.map.x+1]){
 			return false;
 		}
 	}
@@ -167,23 +202,31 @@ function frontIsClear(ms){
 		if(horizontalWalls[ms.map.y+1][ms.map.x]){
 			return false;
 		}
-		if(ms.map.y < rows-1 && msInMap[ms.map.y+1][ms.map.x]){
-			return false;
-		}
 	}
 	if(ms.map.direction === 3){
 		if(verticalWalls[ms.map.y][ms.map.x]){
-			return false;
-		}
-		if(ms.map.x > 0 && msInMap[ms.map.y][ms.map.x-1]){
 			return false;
 		}
 	}
 	return true;
 }
 
+function getDirectionDelta(ms, friend){
+	const absoluteMsDelta = (ms.robotMemory.direction-ms.map.direction+4)%4, absoluteFriendDelta = (friend.robotMemory.direction-friend.map.direction+4)%4;
+	return (absoluteFriendDelta-absoluteMsDelta+4)%4;
+}
+
 function getMsStackTop(ms){
 	return ms.robotMemory.stack[ms.robotMemory.stack.length-1];
+}
+
+function getSuperFriend(ms){
+	if(ms.robotMemory.bestFriend === ms.robotMemory.id){
+		return ms.robotMemory.bestFriend;
+	}
+	else{
+		return getSuperFriend(msInfo[ms.robotMemory.bestFriend]);
+	}
 }
 
 function initMap(){
@@ -273,6 +316,42 @@ function isMsCorrectlyOriented(ms, direction, directionToExplore, initialDirecti
 		}
 	}
 	return false;
+}
+
+function meetFriend(ms){
+	let i, friend, superFriend1, superFriend2, delta;
+	for(i = 0; i < msInfo.length; i++){
+		if(ms.map.direction === 0 && msInfo[i].map.y === ms.map.y-1 && ms.map.x === msInfo[i].map.x){
+			friend = msInfo[i];
+		}
+		if(ms.map.direction === 1 && msInfo[i].map.y === ms.map.y && ms.map.x+1 === msInfo[i].map.x){
+			friend = msInfo[i];
+		}
+		if(ms.map.direction === 2 && msInfo[i].map.y === ms.map.y+1 && ms.map.x === msInfo[i].map.x){
+			friend = msInfo[i];
+		}
+		if(ms.map.direction === 3 && msInfo[i].map.y === ms.map.y && ms.map.x-1 === msInfo[i].map.x){
+			friend = msInfo[i];
+		}
+	}
+
+	console.log(ms.robotMemory, friend.robotMemory);
+
+	superFriend1 = getSuperFriend(ms);
+	superFriend2 = getSuperFriend(friend);
+	if(superFriend1 !== superFriend2){
+		delta = getDirectionDelta(ms, friend);
+
+		correctDirections(superFriend2, delta);
+
+		correctNodes(friend.robotMemory.actualNode, ms.robotMemory.nodesCount, friend.robotMemory.nodesCount, delta);
+
+		msInfo[superFriend2].robotMemory.bestFriend = superFriend1;
+
+		correctFriendsNodesCount(superFriend1, ms.robotMemory.nodesCount+friend.robotMemory.nodesCount);
+
+		createUnion(ms.robotMemory.actualNode, friend.robotMemory.actualNode, ms.map.direction, correctDirection(ms.map.direction, 2));
+	}
 }
 
 function modifyMap(event){
@@ -375,6 +454,7 @@ function msActionMove(ms){
 	}
 	else{
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
+		correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
 		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
@@ -397,9 +477,30 @@ function msActionTurnRight(ms){
 	ms.robotMemory.direction = (ms.robotMemory.direction+1)%4;
 }
 
+function msSensorFriendIsInFront(ms){
+	if(frontIsClear(ms)){
+		if(ms.map.direction === 0 && ms.map.y > 0 && msInMap[ms.map.y-1][ms.map.x]){
+			return true;
+		}
+		if(ms.map.direction === 1 && ms.map.x < columns-1 && msInMap[ms.map.y][ms.map.x+1]){
+			return true;
+		}
+		if(ms.map.direction === 2 && ms.map.y < rows-1 && msInMap[ms.map.y+1][ms.map.x]){
+			return true;
+		}
+		if(ms.map.direction === 3 && ms.map.x > 0 && msInMap[ms.map.y][ms.map.x-1]){
+			return true;
+		}
+	}
+	return false;
+}
+
 function msSensorFrontIsClear(ms){
 	if(frontIsClear(ms)){
 		if(msSensorObjetiveIsInFront(ms)){
+			return false;
+		}
+		if(msSensorFriendIsInFront(ms)){
 			return false;
 		}
 	}
@@ -430,7 +531,7 @@ function msSensorObjetiveIsInFront(ms){
 function msStep(ms){
 	let exploredSomething = false, state = getMsStackTop(ms), i = state.neighborsExplored;
 	while(i < 4 && !exploredSomething){
-		if(isExplorable(ms, ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)])){
+		if(isExplorable(ms, ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection+ms.robotMemory.actualNode.directionCorrection)])){
 			exploredSomething = true;
 		}
 		else{
@@ -447,12 +548,22 @@ function msStep(ms){
 				if(msSensorObjetiveIsInFront(ms)){
 					ms.robotMemory.finished = true;
 				}
-				ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)].wall = true;
-				if(ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)].neighbor){
-					ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)].neighbor.neighbors[correctDirection(2, correctDirection(i, state.initialDirection))].wall = true;
+				if(msSensorFriendIsInFront(ms)){
+					meetFriend(ms);
+				}
+				const direction = correctDirection(i, state.initialDirection+ms.robotMemory.actualNode.directionCorrection);
+				ms.robotMemory.actualNode.neighbors[direction].wall = true;
+				if(ms.robotMemory.actualNode.neighbors[direction].neighbor){
+					ms.robotMemory.actualNode.neighbors[direction].neighbor.neighbors[correctDirection(2, direction)].wall = true;
 				}
 			}
 		}
+		else{
+			if(msSensorFriendIsInFront(ms)){
+				meetFriend(ms);
+			}
+		}
+		
 		state.neighborsExplored = i;
 	}
 	else{
@@ -478,6 +589,7 @@ function newNeighbor(){
 
 function newNode(id){
 	return {
+		directionCorrection: 0,
 		id: id,
 		neighbors: [newNeighbor(), newNeighbor(), newNeighbor(), newNeighbor()]
 	};
@@ -564,6 +676,10 @@ function showMenu(x, y, positionX, positionY){
 function start(){
 	if(msInfo.length > 0 && objetiveX !== undefined){
 		running = true;
+		for(let i = 0; i < msInfo.length; i++){
+			msInfo[i].robotMemory.id = i;
+			msInfo[i].robotMemory.bestFriend = i;
+		}
 		$("#start").hide();
 		simulationIntervalHandle = setInterval(step, speed);
 	}
