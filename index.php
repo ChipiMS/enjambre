@@ -6,9 +6,9 @@
 <body>
 	<div id="mapOptions">
 		<label>Filas</label>
-		<input id="rows" type="number" name="rows" value="10">
+		<input id="rows" type="number" name="rows" value="5">
 		<label>Columnas</label>
-		<input id="columns" type="number" name="columns" value="20">
+		<input id="columns" type="number" name="columns" value="5">
 		<label>Velocidad >= 40</label>
 		<input id="speed" type="number" name="columns" value="1000">
 		<button onclick="initMap()">Crear mapa</button>

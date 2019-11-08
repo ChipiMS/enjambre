@@ -216,6 +216,17 @@ function getDirectionDelta(ms, friend){
 	return (absoluteFriendDelta-absoluteMsDelta+4)%4;
 }
 
+function getFriends(superFriend){
+	let i, ms, friends = [];
+	for(i = 0; i < msInfo.length; i++){
+		ms = msInfo[i];
+		if(getSuperFriend(ms) === superFriend){
+			friends.push(ms);
+		}
+	}
+	return friends;
+}
+
 function getMsStackTop(ms){
 	return ms.robotMemory.stack[ms.robotMemory.stack.length-1];
 }
@@ -319,7 +330,7 @@ function isMsCorrectlyOriented(ms, direction, directionToExplore, initialDirecti
 }
 
 function meetFriend(ms){
-	let i, friend, superFriend1, superFriend2, delta;
+	let i, friend, superFriend1, superFriend2, delta, newNodesCount;
 	for(i = 0; i < msInfo.length; i++){
 		if(ms.map.direction === 0 && msInfo[i].map.y === ms.map.y-1 && ms.map.x === msInfo[i].map.x){
 			friend = msInfo[i];
@@ -335,8 +346,6 @@ function meetFriend(ms){
 		}
 	}
 
-	console.log(ms.robotMemory, friend.robotMemory);
-
 	superFriend1 = getSuperFriend(ms);
 	superFriend2 = getSuperFriend(friend);
 	if(superFriend1 !== superFriend2){
@@ -348,10 +357,74 @@ function meetFriend(ms){
 
 		msInfo[superFriend2].robotMemory.bestFriend = superFriend1;
 
-		correctFriendsNodesCount(superFriend1, ms.robotMemory.nodesCount+friend.robotMemory.nodesCount);
-
 		createUnion(ms.robotMemory.actualNode, friend.robotMemory.actualNode, ms.map.direction, correctDirection(ms.map.direction, 2));
+
+		newNodesCount = mergueMaps(ms.robotMemory.actualNode, getFriends(superFriend1), ms.robotMemory.nodesCount+friend.robotMemory.nodesCount);
+
+		correctFriendsNodesCount(superFriend1, newNodesCount);
 	}
+}
+
+function mergueMaps(node, friends, nodesCount){
+	let i, visited = [], queue = [], actualNode = node, nodeToProcess, newNodes = {}, correctedDirection, newNodesCount = 0, id;
+	for(i = 0; i < nodesCount; i++){
+		visited.push(false);
+	}
+
+	queue.push({
+		node: node,
+		x: 0,
+		y: 0
+	});
+	visited[node.id] = true;
+
+	while(queue.length > 0){
+		nodeToProcess = queue.shift();
+		id = positionToString(nodeToProcess.x, nodeToProcess.y);
+
+		if(!newNodes[id]){
+			newNodes[id] = newNode(newNodesCount++);
+			for(i = 0; i < friends.length; i++){
+				if(friends[i].robotMemory.actualNode === nodeToProcess.node){
+					friends[i].robotMemory.actualNode = newNodes[id];
+				}
+			}
+		}
+
+
+		for(i = 0; i < 4; i++){
+			correctedDirection = correctDirection(i, nodeToProcess.node.directionCorrection);
+			if(nodeToProcess.node.neighbors[correctedDirection].wall !== null){
+				newNodes[id].neighbors[i].wall = nodeToProcess.node.neighbors[correctedDirection].wall;
+			}
+		}
+
+		if(newNodes[positionToString(nodeToProcess.x+1, nodeToProcess.y)]){
+			createUnion(newNodes[id], newNodes[positionToString(nodeToProcess.x+1, nodeToProcess.y)], 1, 3);
+		}
+		if(newNodes[positionToString(nodeToProcess.x-1, nodeToProcess.y)]){
+			createUnion(newNodes[id], newNodes[positionToString(nodeToProcess.x-1, nodeToProcess.y)], 3, 1);
+		}
+		if(newNodes[positionToString(nodeToProcess.x, nodeToProcess.y-1)]){
+			createUnion(newNodes[id], newNodes[positionToString(nodeToProcess.x, nodeToProcess.y-1)], 0, 2);
+		}
+		if(newNodes[positionToString(nodeToProcess.x, nodeToProcess.y+1)]){
+			createUnion(newNodes[id], newNodes[positionToString(nodeToProcess.x, nodeToProcess.y+1)], 2, 0);
+		}
+
+		for(i = 0; i < 4; i++){
+			if(nodeToProcess.node.neighbors[i].neighbor && !visited[nodeToProcess.node.neighbors[i].neighbor.id]){
+				correctedDirection = correctDirection(i, nodeToProcess.node.directionCorrection);
+				queue.push({
+					node: nodeToProcess.node.neighbors[i].neighbor,
+					x: nodeToProcess.x+(correctedDirection % 2 === 1 ? (correctedDirection === 1 ? 1: -1) : 0),
+					y: nodeToProcess.y+(correctedDirection % 2 === 0 ? (correctedDirection === 0 ? -1: 1) : 0)
+				});
+				visited[nodeToProcess.node.neighbors[i].neighbor.id] = true;
+			}
+		}
+	}
+	return newNodesCount;
 }
 
 function modifyMap(event){
@@ -645,6 +718,10 @@ function positionObjetive(){
 	draw();
 }
 
+function positionToString(x, y){
+	return (x < 0? "$"+(-x): x)+"_"+(y < 0? "$"+(-y): y);
+}
+
 function removeMS(){
 	let i, aux;
 	if(msInMap[menuY][menuX]){
@@ -705,7 +782,7 @@ function step(){
 }
 
 function verifyUnions(ms){
-	let i, j, visited = [], queue = [], actualNode = ms.robotMemory.actualNode, nodeToProcess;
+	let i, j, visited = [], queue = [], actualNode = ms.robotMemory.actualNode, nodeToProcess, correctedDirection;
 	for(i = 0; i < ms.robotMemory.nodesCount; i++){
 		visited.push(false);
 	}
@@ -739,10 +816,11 @@ function verifyUnions(ms){
 
 		for(i = 0; i < 4; i++){
 			if(nodeToProcess.node.neighbors[i].neighbor && !visited[nodeToProcess.node.neighbors[i].neighbor.id]){
+				correctedDirection = correctDirection(i, nodeToProcess.node.directionCorrection);
 				queue.push({
 					node: nodeToProcess.node.neighbors[i].neighbor,
-					x: nodeToProcess.x+(i % 2 === 1 ? (i === 1 ? 1: -1) : 0),
-					y: nodeToProcess.y+(i % 2 === 0 ? (i === 0 ? -1: 1) : 0)
+					x: nodeToProcess.x+(correctedDirection % 2 === 1 ? (correctedDirection === 1 ? 1: -1) : 0),
+					y: nodeToProcess.y+(correctedDirection % 2 === 0 ? (correctedDirection === 0 ? -1: 1) : 0)
 				});
 				visited[nodeToProcess.node.neighbors[i].neighbor.id] = true;
 			}
