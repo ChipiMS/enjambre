@@ -46,6 +46,15 @@ msWest.src = "images/msWest.png";
 // ██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║╚════██║
 // ██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
 // ╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+function broadcastObjetive(superFriend, objetive){
+	let i, ms;
+	for(i = 0; i < msInfo.length; i++){
+		ms = msInfo[i];
+		if(getSuperFriend(ms) === superFriend){
+			ms.robotMemory.objetiveNode = objetive;
+		}
+	}
+}
 
 function closeMenu(){
 	$("#menu").css("display", "none");
@@ -621,15 +630,15 @@ function msSensorObjetiveIsInFront(ms){
 
 function msStep(ms){
 	if(ms.robotMemory.objetiveNode){
-		let newPosition = getCloseToTheObjetive();
-		if(newPosition === 4){
-			ms.robotMemory.finished = true;
-		}
-		else{
-			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, newPosition, 0)){
-				msActionMove(ms);
-			}
-		}
+		// let newPosition = getCloseToTheObjetive();
+		// if(newPosition === 4){
+		// 	ms.robotMemory.finished = true;
+		// }
+		// else{
+		// 	if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, newPosition, 0)){
+		// 		msActionMove(ms);
+		// 	}
+		// }
 	}
 	else{
 		let exploredSomething = false, state = getMsStackTop(ms), i = state.neighborsExplored;
@@ -650,12 +659,13 @@ function msStep(ms){
 				else{
 					if(msSensorObjetiveIsInFront(ms)){
 						ms.robotMemory.finished = true;
-						// ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
-						// correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
-						// ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
-						// ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
-						// ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
-						// verifyUnions(ms);
+						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
+						correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
+						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
+						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
+						ms.robotMemory.objetiveNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
+						verifyUnions(ms);
+						broadcastObjetive(getSuperFriend(ms), ms.robotMemory.objetiveNode);
 					}
 					if(msSensorFriendIsInFront(ms)){
 						meetFriend(ms);
@@ -820,13 +830,13 @@ function step(){
 }
 
 function verifyUnions(ms){
-	let i, j, visited = [], queue = [], actualNode = ms.robotMemory.actualNode, nodeToProcess, correctedDirection;
+	let i, j, visited = [], queue = [], actualNode = ms.robotMemory.objetiveNode || ms.robotMemory.actualNode, nodeToProcess, correctedDirection;
 	for(i = 0; i < ms.robotMemory.nodesCount; i++){
 		visited.push(false);
 	}
 
 	queue.push({
-		node: ms.robotMemory.actualNode,
+		node: actualNode,
 		x: 0,
 		y: 0
 	});
