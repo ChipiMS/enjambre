@@ -447,7 +447,7 @@ function mergueMaps(node, friends, objetive, superFriend, nodesCount){
 		for(i = 0; i < 4; i++){
 			correctedDirection = correctDirection(i, 4-nodeToProcess.node.directionCorrection);
 			if(nodeToProcess.node.neighbors[correctedDirection].wall !== null){
-				newNodes[id].neighbors[correctedDirection].wall = nodeToProcess.node.neighbors[correctedDirection].wall;
+				newNodes[id].neighbors[i].wall = nodeToProcess.node.neighbors[correctedDirection].wall;
 			}
 		}
 
@@ -584,6 +584,7 @@ function msActionMove(ms){
 	}
 	else{
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
+		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
 		correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
 		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
@@ -690,6 +691,7 @@ function msStep(ms){
 					if(msSensorObjetiveIsInFront(ms)){
 						ms.robotMemory.finished = true;
 						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
+						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
 						correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
 						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
 						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
