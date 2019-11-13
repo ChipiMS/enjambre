@@ -404,6 +404,8 @@ function meetFriend(ms){
 
 		msInfo[superFriend2].robotMemory.bestFriend = superFriend1;
 
+		ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
+
 		createUnion(ms.robotMemory.actualNode, friend.robotMemory.actualNode, ms.robotMemory.direction, correctDirection(ms.robotMemory.direction, 6-delta));
 
 		newNodesCount = mergueMaps(ms.robotMemory.actualNode, getFriends(superFriend1), ms.robotMemory.objetiveNode || friend.robotMemory.objetiveNode, superFriend1, ms.robotMemory.nodesCount+friend.robotMemory.nodesCount);
@@ -695,13 +697,15 @@ function msStep(ms){
 						verifyUnions(ms);
 						broadcastObjetive(getSuperFriend(ms), ms.robotMemory.objetiveNode);
 					}
-					if(msSensorFriendIsInFront(ms)){
+					else if(msSensorFriendIsInFront(ms)){
 						meetFriend(ms);
 					}
-					const direction = correctDirection(i, state.initialDirection);
-					ms.robotMemory.actualNode.neighbors[direction].wall = true;
-					if(ms.robotMemory.actualNode.neighbors[direction].neighbor){
-						ms.robotMemory.actualNode.neighbors[direction].neighbor.neighbors[correctDirection(2, direction)].wall = true;
+					else{
+						const direction = correctDirection(i, state.initialDirection);
+						ms.robotMemory.actualNode.neighbors[direction].wall = true;
+						if(ms.robotMemory.actualNode.neighbors[direction].neighbor){
+							ms.robotMemory.actualNode.neighbors[direction].neighbor.neighbors[correctDirection(2, direction)].wall = true;
+						}
 					}
 				}
 			}
