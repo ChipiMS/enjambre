@@ -258,6 +258,19 @@ function frontIsClear(ms){
 	return true;
 }
 
+function getCloseToTheObjetive(ms){
+	let i, bestPath = 4, bestDistance = ms.robotMemory.actualNode.distance;
+	for(i = 0; i < 4; i++){
+
+		if(ms.robotMemory.actualNode.neighbors[i].neighbor && ms.robotMemory.actualNode.neighbors[i].neighbor.distance && ms.robotMemory.actualNode.neighbors[i].neighbor.distance < bestDistance){
+			bestDistance = ms.robotMemory.actualNode.neighbors[i].neighbor.distance;
+			bestPath = i;
+		}
+	}
+
+	return bestPath;
+}
+
 function getDirectionDelta(ms, friend){
 	const absoluteMsDelta = (ms.map.direction-ms.robotMemory.direction+4)%4, absoluteFriendDelta = (friend.map.direction-friend.robotMemory.direction+4)%4;
 	return (absoluteFriendDelta-absoluteMsDelta+4)%4;
@@ -661,15 +674,20 @@ function msSensorObjetiveIsInFront(ms){
 
 function msStep(ms){
 	if(ms.robotMemory.objetiveNode){
-		// let newPosition = getCloseToTheObjetive();
-		// if(newPosition === 4){
-		// 	ms.robotMemory.finished = true;
-		// }
-		// else{
-		// 	if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, newPosition, 0)){
-		// 		msActionMove(ms);
-		// 	}
-		// }
+		let newPosition = getCloseToTheObjetive(ms);
+		if(newPosition === 4){
+			ms.robotMemory.finished = true;
+		}
+		else{
+			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, newPosition, 0)){
+				if(msSensorFrontIsClear(ms)){
+					msActionMove(ms);
+				}
+				else{
+					ms.robotMemory.finished = true;
+				}
+			}
+		}
 	}
 	else{
 		let exploredSomething = false, state = getMsStackTop(ms), i = state.neighborsExplored;
