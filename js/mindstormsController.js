@@ -56,11 +56,14 @@ function correctDirection(direction, delta){
 }
 
 function correctDirections(superFriend, delta){
-	let i, ms;
+	let i, j, ms;
 	for(i = 0; i < msInfo.length; i++){
 		ms = msInfo[i];
 		if(getSuperFriend(ms) === superFriend){
 			ms.robotMemory.direction = correctDirection(ms.robotMemory.direction, delta);
+			for(j = 0; j < ms.robotMemory.stack.length; j++){
+				ms.robotMemory.stack[j].initialDirection = correctDirection(ms.robotMemory.stack[j].initialDirection, delta);
+			}
 		}
 	}
 }
@@ -79,7 +82,7 @@ function correctNodes(node, countStart, lastCount, delta){
 	let i, queue = [], nodeToProcess, newId = countStart;
 
 	queue.push(node);
-	node.id = newId++;
+	node.newId = newId++;
 
 	while(queue.length > 0){
 		nodeToProcess = queue.shift();
@@ -87,24 +90,39 @@ function correctNodes(node, countStart, lastCount, delta){
 		nodeToProcess.directionCorrection = correctDirection(nodeToProcess.directionCorrection, delta);
 
 		for(i = 0; i < 4; i++){
-			if(nodeToProcess.neighbors[i].neighbor && nodeToProcess.neighbors[i].neighbor.id < countStart){
+			if(nodeToProcess.neighbors[i].neighbor && nodeToProcess.neighbors[i].neighbor.newId === undefined){
 				queue.push(nodeToProcess.neighbors[i].neighbor);
-				nodeToProcess.neighbors[i].neighbor.id = newId++;
+				nodeToProcess.neighbors[i].neighbor.newId = newId++;
+			}
+		}
+	}
+
+	queue.push(node);
+	node.id = node.newId;
+	delete node.newId;
+
+	while(queue.length > 0){
+		nodeToProcess = queue.shift();
+
+		for(i = 0; i < 4; i++){
+			if(nodeToProcess.neighbors[i].neighbor && nodeToProcess.neighbors[i].neighbor.newId !== undefined){
+				queue.push(nodeToProcess.neighbors[i].neighbor);
+				nodeToProcess.neighbors[i].neighbor.id = nodeToProcess.neighbors[i].neighbor.newId;
+				delete nodeToProcess.neighbors[i].neighbor.newId;
 			}
 		}
 	}
 }
 
 function createUnion(actualNode, nodeToProcess, anDirection, ntpDirection){
-	const correctedAnDirection = correctDirection(anDirection, actualNode.directionCorrection), correctedNtpDirection = correctDirection(ntpDirection, nodeToProcess.directionCorrection);
-	if(actualNode.neighbors[correctedAnDirection].neighbor === null){
-		actualNode.neighbors[correctedAnDirection].neighbor = nodeToProcess;
-		nodeToProcess.neighbors[correctedNtpDirection].neighbor = actualNode;
-		if(actualNode.neighbors[correctedAnDirection].wall !== null){
-			nodeToProcess.neighbors[correctedNtpDirection].wall = actualNode.neighbors[correctedAnDirection].wall;
+	if(actualNode.neighbors[anDirection].neighbor === null){
+		actualNode.neighbors[anDirection].neighbor = nodeToProcess;
+		nodeToProcess.neighbors[ntpDirection].neighbor = actualNode;
+		if(actualNode.neighbors[anDirection].wall !== null){
+			nodeToProcess.neighbors[ntpDirection].wall = actualNode.neighbors[anDirection].wall;
 		}
-		else if(nodeToProcess.neighbors[correctedNtpDirection].wall !== null){
-			actualNode.neighbors[correctedAnDirection].wall = nodeToProcess.neighbors[correctedNtpDirection].wall;
+		else if(nodeToProcess.neighbors[ntpDirection].wall !== null){
+			actualNode.neighbors[anDirection].wall = nodeToProcess.neighbors[ntpDirection].wall;
 		}
 	}
 }
@@ -212,7 +230,7 @@ function frontIsClear(ms){
 }
 
 function getDirectionDelta(ms, friend){
-	const absoluteMsDelta = (ms.robotMemory.direction-ms.map.direction+4)%4, absoluteFriendDelta = (friend.robotMemory.direction-friend.map.direction+4)%4;
+	const absoluteMsDelta = (ms.map.direction-ms.robotMemory.direction+4)%4, absoluteFriendDelta = (friend.map.direction-friend.robotMemory.direction+4)%4;
 	return (absoluteFriendDelta-absoluteMsDelta+4)%4;
 }
 
@@ -357,7 +375,7 @@ function meetFriend(ms){
 
 		msInfo[superFriend2].robotMemory.bestFriend = superFriend1;
 
-		createUnion(ms.robotMemory.actualNode, friend.robotMemory.actualNode, ms.map.direction, correctDirection(ms.map.direction, 2));
+		createUnion(ms.robotMemory.actualNode, friend.robotMemory.actualNode, ms.robotMemory.direction, correctDirection(ms.robotMemory.direction, 6-delta));
 
 		newNodesCount = mergueMaps(ms.robotMemory.actualNode, getFriends(superFriend1), ms.robotMemory.nodesCount+friend.robotMemory.nodesCount);
 
@@ -393,9 +411,9 @@ function mergueMaps(node, friends, nodesCount){
 
 
 		for(i = 0; i < 4; i++){
-			correctedDirection = correctDirection(i, nodeToProcess.node.directionCorrection);
+			correctedDirection = correctDirection(i, 4-nodeToProcess.node.directionCorrection);
 			if(nodeToProcess.node.neighbors[correctedDirection].wall !== null){
-				newNodes[id].neighbors[i].wall = nodeToProcess.node.neighbors[correctedDirection].wall;
+				newNodes[id].neighbors[correctedDirection].wall = nodeToProcess.node.neighbors[correctedDirection].wall;
 			}
 		}
 
@@ -413,14 +431,14 @@ function mergueMaps(node, friends, nodesCount){
 		}
 
 		for(i = 0; i < 4; i++){
-			if(nodeToProcess.node.neighbors[i].neighbor && !visited[nodeToProcess.node.neighbors[i].neighbor.id]){
-				correctedDirection = correctDirection(i, nodeToProcess.node.directionCorrection);
+			correctedDirection = correctDirection(i, 4-nodeToProcess.node.directionCorrection);
+			if(nodeToProcess.node.neighbors[correctedDirection].neighbor && !visited[nodeToProcess.node.neighbors[correctedDirection].neighbor.id]){
 				queue.push({
-					node: nodeToProcess.node.neighbors[i].neighbor,
-					x: nodeToProcess.x+(correctedDirection % 2 === 1 ? (correctedDirection === 1 ? 1: -1) : 0),
-					y: nodeToProcess.y+(correctedDirection % 2 === 0 ? (correctedDirection === 0 ? -1: 1) : 0)
+					node: nodeToProcess.node.neighbors[correctedDirection].neighbor,
+					x: nodeToProcess.x+(i % 2 === 1 ? (i === 1 ? 1: -1) : 0),
+					y: nodeToProcess.y+(i % 2 === 0 ? (i === 0 ? -1: 1) : 0)
 				});
-				visited[nodeToProcess.node.neighbors[i].neighbor.id] = true;
+				visited[nodeToProcess.node.neighbors[correctedDirection].neighbor.id] = true;
 			}
 		}
 	}
@@ -602,52 +620,71 @@ function msSensorObjetiveIsInFront(ms){
 }
 
 function msStep(ms){
-	let exploredSomething = false, state = getMsStackTop(ms), i = state.neighborsExplored;
-	while(i < 4 && !exploredSomething){
-		if(isExplorable(ms, ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection+ms.robotMemory.actualNode.directionCorrection)])){
-			exploredSomething = true;
+	if(ms.robotMemory.objetiveNode){
+		let newPosition = getCloseToTheObjetive();
+		if(newPosition === 4){
+			ms.robotMemory.finished = true;
 		}
 		else{
-			i++;
-		}
-	}
-
-	if(i < 4){
-		if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, i, state.initialDirection)){
-			if(msSensorFrontIsClear(ms)){
+			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, newPosition, 0)){
 				msActionMove(ms);
 			}
+		}
+	}
+	else{
+		let exploredSomething = false, state = getMsStackTop(ms), i = state.neighborsExplored;
+		while(i < 4 && !exploredSomething){
+			if(isExplorable(ms, ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)])){
+				exploredSomething = true;
+			}
 			else{
-				if(msSensorObjetiveIsInFront(ms)){
-					ms.robotMemory.finished = true;
+				i++;
+			}
+		}
+
+		if(i < 4){
+			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, i, state.initialDirection)){
+				if(msSensorFrontIsClear(ms)){
+					msActionMove(ms);
 				}
+				else{
+					if(msSensorObjetiveIsInFront(ms)){
+						ms.robotMemory.finished = true;
+						// ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
+						// correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
+						// ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
+						// ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
+						// ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
+						// verifyUnions(ms);
+					}
+					if(msSensorFriendIsInFront(ms)){
+						meetFriend(ms);
+					}
+					const direction = correctDirection(i, state.initialDirection);
+					ms.robotMemory.actualNode.neighbors[direction].wall = true;
+					if(ms.robotMemory.actualNode.neighbors[direction].neighbor){
+						ms.robotMemory.actualNode.neighbors[direction].neighbor.neighbors[correctDirection(2, direction)].wall = true;
+					}
+				}
+			}
+			else{
 				if(msSensorFriendIsInFront(ms)){
 					meetFriend(ms);
 				}
-				const direction = correctDirection(i, state.initialDirection+ms.robotMemory.actualNode.directionCorrection);
-				ms.robotMemory.actualNode.neighbors[direction].wall = true;
-				if(ms.robotMemory.actualNode.neighbors[direction].neighbor){
-					ms.robotMemory.actualNode.neighbors[direction].neighbor.neighbors[correctDirection(2, direction)].wall = true;
-				}
 			}
+			
+			state.neighborsExplored = i;
 		}
 		else{
-			if(msSensorFriendIsInFront(ms)){
-				meetFriend(ms);
-			}
-		}
-		
-		state.neighborsExplored = i;
-	}
-	else{
-		if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, 2, state.initialDirection)){
-			ms.robotMemory.stack.pop();
-			if(ms.robotMemory.stack.length > 0){
-				msActionMove(ms);
+			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, 2, state.initialDirection)){
 				ms.robotMemory.stack.pop();
-			}
-			else{
-				ms.robotMemory.finished = true;
+				if(ms.robotMemory.stack.length > 0){
+					msActionMove(ms);
+					ms.robotMemory.stack.pop();
+				}
+				else{
+					ms.robotMemory.finished = true;
+				}
 			}
 		}
 	}
@@ -685,6 +722,7 @@ function positionMS(direction){
 				direction: 0,
 				finished: false,
 				nodesCount: 1,
+				objetiveNode: null,
 				stack: []
 			}
 		};
@@ -816,11 +854,10 @@ function verifyUnions(ms){
 
 		for(i = 0; i < 4; i++){
 			if(nodeToProcess.node.neighbors[i].neighbor && !visited[nodeToProcess.node.neighbors[i].neighbor.id]){
-				correctedDirection = correctDirection(i, nodeToProcess.node.directionCorrection);
 				queue.push({
 					node: nodeToProcess.node.neighbors[i].neighbor,
-					x: nodeToProcess.x+(correctedDirection % 2 === 1 ? (correctedDirection === 1 ? 1: -1) : 0),
-					y: nodeToProcess.y+(correctedDirection % 2 === 0 ? (correctedDirection === 0 ? -1: 1) : 0)
+					x: nodeToProcess.x+(i % 2 === 1 ? (i === 1 ? 1: -1) : 0),
+					y: nodeToProcess.y+(i % 2 === 0 ? (i === 0 ? -1: 1) : 0)
 				});
 				visited[nodeToProcess.node.neighbors[i].neighbor.id] = true;
 			}
