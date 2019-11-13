@@ -46,6 +46,24 @@ msWest.src = "images/msWest.png";
 // ██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║╚════██║
 // ██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
 // ╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+function addDistance(node){
+	let i, queue = [], actualNode = node, nodeToProcess;
+
+	actualNode.distance = 0;
+	queue.push(actualNode);
+
+	while(queue.length > 0){
+		nodeToProcess = queue.shift();
+
+		for(i = 0; i < 4; i++){
+			if(nodeToProcess.neighbors[i].neighbor && nodeToProcess.neighbors[i].wall === false && nodeToProcess.neighbors[i].neighbor.distance === undefined){
+				nodeToProcess.neighbors[i].neighbor.distance = nodeToProcess.distance+1;
+				queue.push(nodeToProcess.neighbors[i].neighbor);
+			}
+		}
+	}
+}
+
 function broadcastObjetive(superFriend, objetive){
 	let i, ms;
 	for(i = 0; i < msInfo.length; i++){
@@ -54,6 +72,8 @@ function broadcastObjetive(superFriend, objetive){
 			ms.robotMemory.objetiveNode = objetive;
 		}
 	}
+
+	addDistance(ms.robotMemory.objetiveNode);
 }
 
 function closeMenu(){
@@ -386,14 +406,14 @@ function meetFriend(ms){
 
 		createUnion(ms.robotMemory.actualNode, friend.robotMemory.actualNode, ms.robotMemory.direction, correctDirection(ms.robotMemory.direction, 6-delta));
 
-		newNodesCount = mergueMaps(ms.robotMemory.actualNode, getFriends(superFriend1), ms.robotMemory.nodesCount+friend.robotMemory.nodesCount);
+		newNodesCount = mergueMaps(ms.robotMemory.actualNode, getFriends(superFriend1), ms.robotMemory.objetiveNode || friend.robotMemory.objetiveNode, superFriend1, ms.robotMemory.nodesCount+friend.robotMemory.nodesCount);
 
 		correctFriendsNodesCount(superFriend1, newNodesCount);
 	}
 }
 
-function mergueMaps(node, friends, nodesCount){
-	let i, visited = [], queue = [], actualNode = node, nodeToProcess, newNodes = {}, correctedDirection, newNodesCount = 0, id;
+function mergueMaps(node, friends, objetive, superFriend, nodesCount){
+	let i, visited = [], queue = [], actualNode = node, nodeToProcess, newNodes = {}, correctedDirection, newNodesCount = 0, id, newObjetive;
 	for(i = 0; i < nodesCount; i++){
 		visited.push(false);
 	}
@@ -415,6 +435,9 @@ function mergueMaps(node, friends, nodesCount){
 				if(friends[i].robotMemory.actualNode === nodeToProcess.node){
 					friends[i].robotMemory.actualNode = newNodes[id];
 				}
+			}
+			if(objetive && objetive === nodeToProcess.node){
+				newObjetive = nodeToProcess.node;
 			}
 		}
 
@@ -451,6 +474,11 @@ function mergueMaps(node, friends, nodesCount){
 			}
 		}
 	}
+
+	if(newObjetive){
+		broadcastObjetive(superFriend, newObjetive);
+	}
+
 	return newNodesCount;
 }
 
@@ -830,7 +858,7 @@ function step(){
 }
 
 function verifyUnions(ms){
-	let i, j, visited = [], queue = [], actualNode = ms.robotMemory.objetiveNode || ms.robotMemory.actualNode, nodeToProcess, correctedDirection;
+	let i, j, visited = [], queue = [], actualNode = ms.robotMemory.objetiveNode || ms.robotMemory.actualNode, nodeToProcess;
 	for(i = 0; i < ms.robotMemory.nodesCount; i++){
 		visited.push(false);
 	}
