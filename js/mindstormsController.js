@@ -354,6 +354,9 @@ function isExplorable(ms, node){
 	if(node.neighbor === null && node.wall !== true){
 		return true;
 	}
+	if(node.neighbor !== null && node.wall === null){
+		return true;
+	}
 	return false;
 }
 
@@ -703,16 +706,28 @@ function msStep(ms){
 		if(i < 4){
 			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, i, state.initialDirection)){
 				if(msSensorFrontIsClear(ms)){
-					msActionMove(ms);
+					if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
+						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
+						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
+					}
+					else{
+						msActionMove(ms);
+					}
 				}
 				else{
-					if(msSensorObjetiveIsInFront(ms)){
+					if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
+						if(!msSensorObjetiveIsInFront(ms) && !msSensorFriendIsInFront(ms)){
+							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
+							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
+						}
+					}
+					else if(msSensorObjetiveIsInFront(ms)){
 						ms.robotMemory.finished = true;
 						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
 						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
 						correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
-						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].neighbor = ms.robotMemory.actualNode;
-						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[(ms.robotMemory.direction+2)%4].wall = false;
+						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].neighbor = ms.robotMemory.actualNode;
+						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
 						ms.robotMemory.objetiveNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
 						verifyUnions(ms);
 						broadcastObjetive(getSuperFriend(ms), ms.robotMemory.objetiveNode);
