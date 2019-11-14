@@ -4,6 +4,7 @@
 // ╚██╗ ██╔╝██╔══██║██╔══██╗██║██╔══██║██╔══██╗██║     ██╔══╝  ╚════██║
 //  ╚████╔╝ ██║  ██║██║  ██║██║██║  ██║██████╔╝███████╗███████╗███████║
 //   ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝╚══════╝
+var bfsVisited;
 var building = false;
 var canvas = document.getElementById("myCanvas");
 var canvasContext = canvas.getContext("2d");
@@ -258,6 +259,54 @@ function frontIsClear(ms){
 	return true;
 }
 
+function getClosestExpedition(ms, direction){
+	let i;
+	bfsVisited = [];
+	for(i = 0; i < ms.robotMemory.nodesCount; i++){
+		bfsVisited.push(false);
+	}
+	bfsVisited[ms.robotMemory.actualNode.id] = true;
+	if(ms.robotMemory.actualNode.neighbors[direction].wall === false && ms.robotMemory.actualNode.neighbors[direction].neighbor){
+		return getClosestExpeditionAlgorithm(ms.robotMemory.actualNode.neighbors[direction].neighbor);
+	}
+	return -1;
+}
+
+function getClosestExpeditionAlgorithm(node){
+	let i, result, best = -1;
+	if(bfsVisited[node.id]){
+		return -1;
+	}
+	bfsVisited[node.id] = true;
+	for(i = 0; i < 4; i++){
+		if(isExplorable(node.neighbors[i])){
+			return 1;
+		}
+		else{
+			if(node.neighbors[i].wall === false && node.neighbors[i].neighbor){
+				result = getClosestExpeditionAlgorithm(node.neighbors[i].neighbor);
+				if(result !== -1){
+					if(best === -1){
+						best = result;
+					}
+					else{
+						if(result < best){
+							best = result;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	bfsVisited[node.id] = false;
+
+	if(best !== -1){
+		return best+1;
+	}
+	return -1;
+}
+
 function getCloseToTheObjetive(ms){
 	let i, bestPath = 4, bestDistance = ms.robotMemory.actualNode.distance;
 	for(i = 0; i < 4; i++){
@@ -298,6 +347,30 @@ function getSuperFriend(ms){
 	else{
 		return getSuperFriend(msInfo[ms.robotMemory.bestFriend]);
 	}
+}
+
+function goToExplore(ms){
+	let i, closest = -1, direction = 4, result;
+	for(i = 0; i < 4; i++){
+		if(isExplorable(ms.robotMemory.actualNode.neighbors[i])){
+			return i;
+		}
+		result = getClosestExpedition(ms, i);
+		if(result !== -1){
+			if(closest === -1){
+				closest = result;
+				direction = i;
+			}
+			else{
+				if(result < closest){
+					closest = result;
+					direction = i;
+				}
+			}
+		}
+	}
+
+	return direction;
 }
 
 function initMap(){
@@ -350,7 +423,7 @@ function initWalls(){
 	}
 }
 
-function isExplorable(ms, node){
+function isExplorable(node){
 	if(node.neighbor === null && node.wall !== true){
 		return true;
 	}
@@ -593,7 +666,7 @@ function move(){
 	return false;
 }
 
-function msActionMove(ms){
+function msActionMove(ms, dontPush){
 	ms.map.willMove = true;
 	if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
 		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
@@ -607,11 +680,13 @@ function msActionMove(ms){
 		ms.robotMemory.actualNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
 		verifyUnions(ms);
 	}
-	ms.robotMemory.stack.push({
-		initialDirection: ms.robotMemory.direction,
-		neighborsExplored: 0,
-		node: ms.robotMemory.actualNode
-	});
+	if(!dontPush){
+		ms.robotMemory.stack.push({
+			initialDirection: ms.robotMemory.direction,
+			neighborsExplored: 0,
+			node: ms.robotMemory.actualNode
+		});
+	}
 }
 
 function msActionTurnLeft(ms){
@@ -684,7 +759,7 @@ function msStep(ms){
 		else{
 			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, newPosition, 0)){
 				if(msSensorFrontIsClear(ms)){
-					msActionMove(ms);
+					msActionMove(ms, true);
 				}
 				else{
 					ms.robotMemory.finished = true;
@@ -693,74 +768,118 @@ function msStep(ms){
 		}
 	}
 	else{
-		let exploredSomething = false, state = getMsStackTop(ms), i = state.neighborsExplored;
-		while(i < 4 && !exploredSomething){
-			if(isExplorable(ms, ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)])){
-				exploredSomething = true;
+		if(ms.robotMemory.stack.length > 0){
+			let exploredSomething = false, state = getMsStackTop(ms), i = state.neighborsExplored;
+			while(i < 4 && !exploredSomething){
+				if(isExplorable(ms.robotMemory.actualNode.neighbors[correctDirection(i, state.initialDirection)])){
+					exploredSomething = true;
+				}
+				else{
+					i++;
+				}
 			}
-			else{
-				i++;
-			}
-		}
 
-		if(i < 4){
-			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, i, state.initialDirection)){
-				if(msSensorFrontIsClear(ms)){
-					if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
-						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
-						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
+			if(i < 4){
+				if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, i, state.initialDirection)){
+					if(msSensorFrontIsClear(ms)){
+						if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
+							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
+							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
+						}
+						else{
+							msActionMove(ms);
+						}
 					}
 					else{
-						msActionMove(ms);
+						if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
+							if(!msSensorObjetiveIsInFront(ms) && !msSensorFriendIsInFront(ms)){
+								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
+								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
+							}
+						}
+						else if(msSensorObjetiveIsInFront(ms)){
+							ms.robotMemory.finished = true;
+							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
+							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
+							correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
+							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].neighbor = ms.robotMemory.actualNode;
+							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
+							ms.robotMemory.objetiveNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
+							verifyUnions(ms);
+							broadcastObjetive(getSuperFriend(ms), ms.robotMemory.objetiveNode);
+						}
+						else if(msSensorFriendIsInFront(ms)){
+							meetFriend(ms);
+						}
+						else{
+							const direction = correctDirection(i, state.initialDirection);
+							ms.robotMemory.actualNode.neighbors[direction].wall = true;
+							if(ms.robotMemory.actualNode.neighbors[direction].neighbor){
+								ms.robotMemory.actualNode.neighbors[direction].neighbor.neighbors[correctDirection(2, direction)].wall = true;
+							}
+						}
 					}
 				}
 				else{
-					if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
-						if(!msSensorObjetiveIsInFront(ms) && !msSensorFriendIsInFront(ms)){
-							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
-							ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
-						}
-					}
-					else if(msSensorObjetiveIsInFront(ms)){
-						ms.robotMemory.finished = true;
-						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
-						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
-						correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
-						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].neighbor = ms.robotMemory.actualNode;
-						ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
-						ms.robotMemory.objetiveNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
-						verifyUnions(ms);
-						broadcastObjetive(getSuperFriend(ms), ms.robotMemory.objetiveNode);
-					}
-					else if(msSensorFriendIsInFront(ms)){
+					if(msSensorFriendIsInFront(ms)){
 						meetFriend(ms);
 					}
-					else{
-						const direction = correctDirection(i, state.initialDirection);
-						ms.robotMemory.actualNode.neighbors[direction].wall = true;
-						if(ms.robotMemory.actualNode.neighbors[direction].neighbor){
-							ms.robotMemory.actualNode.neighbors[direction].neighbor.neighbors[correctDirection(2, direction)].wall = true;
-						}
+				}
+				
+				state.neighborsExplored = i;
+			}
+			else{
+				if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, 2, state.initialDirection)){
+					ms.robotMemory.stack.pop();
+					if(ms.robotMemory.stack.length > 0){
+						msActionMove(ms);
+						ms.robotMemory.stack.pop();
 					}
 				}
 			}
-			else{
-				if(msSensorFriendIsInFront(ms)){
-					meetFriend(ms);
-				}
-			}
-			
-			state.neighborsExplored = i;
 		}
 		else{
-			if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, 2, state.initialDirection)){
-				ms.robotMemory.stack.pop();
-				if(ms.robotMemory.stack.length > 0){
-					msActionMove(ms);
-					ms.robotMemory.stack.pop();
-				}
-				else{
-					ms.robotMemory.finished = true;
+			let newPosition = goToExplore(ms);
+			if(newPosition === 4){
+				ms.robotMemory.finished = true;
+			}
+			else{
+				if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, newPosition, 0)){
+					if(isExplorable(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction])){
+						if(msSensorFrontIsClear(ms)){
+							msActionMove(ms);
+						}
+						else{
+							if(msSensorObjetiveIsInFront(ms)){
+								ms.robotMemory.finished = true;
+								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor = newNode(ms.robotMemory.nodesCount++);
+								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
+								correctFriendsNodesCount(getSuperFriend(ms), ms.robotMemory.nodesCount);
+								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].neighbor = ms.robotMemory.actualNode;
+								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
+								ms.robotMemory.objetiveNode = ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor;
+								verifyUnions(ms);
+								broadcastObjetive(getSuperFriend(ms), ms.robotMemory.objetiveNode);
+							}
+							else if(msSensorFriendIsInFront(ms)){
+								meetFriend(ms);
+							}
+							else{
+								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = true;
+								if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
+									ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = true;
+								}
+							}
+						}
+					}
+					else{
+						if(frontIsClear(ms)){
+							msActionMove(ms, true);
+						}
+						else{
+							meetFriend(ms);
+						}
+					}
 				}
 			}
 		}
