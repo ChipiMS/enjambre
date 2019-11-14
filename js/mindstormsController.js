@@ -794,7 +794,7 @@ function msStep(ms){
 						if(ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor){
 							if(!msSensorObjetiveIsInFront(ms) && !msSensorFriendIsInFront(ms)){
 								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].wall = false;
-								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
+								ms.robotMemory.actualNode.neighbors[ms.robotMemory.direction].neighbor.neighbors[correctDirection(2, ms.robotMemory.direction)].wall = false;
 							}
 						}
 						else if(msSensorObjetiveIsInFront(ms)){
@@ -830,10 +830,12 @@ function msStep(ms){
 			}
 			else{
 				if(isMsCorrectlyOriented(ms, ms.robotMemory.direction, 2, state.initialDirection)){
-					ms.robotMemory.stack.pop();
-					if(ms.robotMemory.stack.length > 0){
-						msActionMove(ms);
+					if(msSensorFrontIsClear){
 						ms.robotMemory.stack.pop();
+						if(ms.robotMemory.stack.length > 0){
+							msActionMove(ms);
+							ms.robotMemory.stack.pop();
+						}
 					}
 				}
 			}
