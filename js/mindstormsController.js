@@ -565,7 +565,7 @@ function start(){
 	if(msInfo.length > 0 && objetiveX !== undefined){
 		running = true;
 		$("#start").hide();
-		simulationIntervalHandle = setInterval(step, speed);
+		while(step());
 	}
 }
 
@@ -581,11 +581,12 @@ function step(){
 
 	crashed = move();
 
-	if(allFinished || crashed){
-		window.clearInterval(simulationIntervalHandle);
-	}
-
 	draw();
+
+	if(allFinished || crashed){
+		return false;
+	}
+	return true
 }
 
 function verifyUnions(ms){
